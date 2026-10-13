@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Ignis</title>
+  <link rel="stylesheet" href="/auth-assets/auth.css">
+  <script src="/auth-assets/login.js" defer></script>
+</head>
+<body class="ignis-login">
+  <main>
+    <h1>Sign in to Ignis</h1>
+    <p>Enter your instance password to open your vaults.</p>
+    <form id="login-form" method="post" action="/api/auth/login">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+      <button type="submit">Sign in</button>
+    </form>
+    <p id="login-status" role="status" aria-live="polite"></p>
+  </main>
+</body>
+</html>

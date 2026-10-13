@@ -3,6 +3,12 @@ title: Updating
 description: Update Ignis and the pinned Obsidian version.
 ---
 
+## Authentication upgrade
+
+Before upgrading from a version without built-in login, configure exactly one password/hash source as described in [Authentication](/docs/security/authentication/), plus `IGNIS_PUBLIC_ORIGIN` for remote HTTPS access. Alternatively, explicitly set `IGNIS_AUTH_MODE=external` behind your existing authentication gateway and remove password variables. Without valid configuration the server refuses to start; it does not fall back to anonymous access.
+
+No vault or database migration is needed. Browser sessions last seven days and are held in memory, so every restart or image update requires signing in again. Existing editor tabs show a sign-in notice; keep them open and retry failed saves after reauthentication.
+
 ## Update Ignis
 
 From your compose directory, pull the latest image and recreate the container:

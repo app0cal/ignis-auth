@@ -3,7 +3,7 @@ title: Hardening
 description: Important security considerations.
 ---
 
-Serving Ignis in a [secure context](/docs/security/remote-access/) and putting [authentication](/docs/security/authentication/) in front are the essentials for any exposed instance. Two further settings shape the security surface, and are worth understanding before you open it up.
+Serving Ignis in a [secure context](/docs/security/remote-access/) and configuring [authentication](/docs/security/authentication/) are the essentials for any exposed instance. Two further settings shape the security surface, and are worth understanding before you open it up.
 
 ## The cross-origin proxy
 
@@ -18,4 +18,12 @@ There is also a direct-fetch list setting that marks CORS-friendly hosts the bro
 
 ## WebSocket origins
 
-Ignis pushes vault changes to open tabs over a WebSocket, and by default it accepts a connection from any origin. That means a page on another site, opened by a logged-in user, could connect to your instance. Set the environment variable [`WS_ORIGINS`](/docs/server/environment/) to the origins you serve Ignis from, and connections from anywhere else are refused.
+In password mode, every WebSocket upgrade requires a valid session and an Origin matching `IGNIS_PUBLIC_ORIGIN`. Expiry and logout revoke live connections. `WS_ORIGINS`, if set, adds another allowlist check.
+
+In external mode, the gateway must authenticate WebSocket upgrades as well as HTTP requests. Set [`WS_ORIGINS`](/docs/server/environment/) to your browser origin; without it the application does not restrict origins in external mode. Never publish a backend port that bypasses the gateway.
+
+## Sessions and trusted code
+
+All authenticated browsers have owner access to every vault, setting, and server plugin. Community plugins run as trusted code in the signed-in browser; authentication does not sandbox them. Logout cannot erase already downloaded content from other tabs. Save changes before signing out and close tabs on shared devices.
+
+Only set `IGNIS_TRUST_PROXY` for controlled proxy addresses that replace forwarded headers. The default ignores forwarded client IPs. With no trust configuration, clients behind a proxy share its login limit.

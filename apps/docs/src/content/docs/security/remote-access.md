@@ -7,7 +7,7 @@ Obsidian relies on a number of APIs that the browser only provides if certain se
 
 This means that if you want to access Ignis from any other origin than `http://localhost` (which is considered secure), you need to either serve Ignis over HTTPS, or add the origin in question to your browser's list of secure origins via experimental settings. If you do not, some of Obsidian's features will not work.
 
-If you also expose your instance to the internet, it is essential to add an [authentication](/docs/security/authentication/) layer in front, in order to prevent unauthorized access and potentially malicious changes to your vault.
+Built-in password authentication is enabled by default. Set `IGNIS_PUBLIC_ORIGIN` to the exact HTTPS origin used by your browser, and have the proxy preserve the host. An existing login gateway can instead use explicit external mode; see [Authentication](/docs/security/authentication/).
 
 ## Serving over HTTPS
 
@@ -18,6 +18,8 @@ To serve Ignis over HTTPS, add a TLS terminator in front of it in one of the fol
 - **A Cloudflare Tunnel.** Reaches Ignis through Cloudflare's edge over HTTPS, with no port forwarding or certificates. Pair it with Cloudflare Access to require a login.
 
 ## Running without TLS
+
+Password mode does not support remote plain HTTP. The following browser workarounds apply only to installations with separately secured access in external-auth mode; they do not encrypt traffic or replace authentication.
 
 For LAN access without a certificate, tell the browser to treat the Ignis origin as a secure origin. It has to be set in every browser, on every client that accesses Ignis.
 

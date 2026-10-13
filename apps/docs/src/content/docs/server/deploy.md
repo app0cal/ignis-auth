@@ -14,11 +14,15 @@ services:
   ignis:
     image: nobbe/ignis:latest
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       # match these to your host user (run: id)
       - PUID=1000
       - PGID=1000
+      - IGNIS_PASSWORD_FILE=/run/secrets/ignis_password
+      - IGNIS_PUBLIC_ORIGIN=http://localhost:8080
+    secrets:
+      - ignis_password
     volumes:
       - ./vaults:/vaults
       - ./data:/app/data
@@ -27,7 +31,13 @@ services:
 
 volumes:
   obsidian-app:
+
+secrets:
+  ignis_password:
+    file: ./.ignis-secrets/password
 ```
+
+Create `.ignis-secrets/password` containing a strong, unique password. Restrict host access to the file, ensure the configured container user can read it, and keep it out of version control. The secret is mounted read-only; Ignis hashes it in memory at startup.
 
 This maps three paths onto the host so your data persists across restarts and updates:
 
@@ -35,7 +45,7 @@ This maps three paths onto the host so your data persists across restarts and up
 - `./data` holds Ignis state, such as server plugin settings and sync configuration.
 - `obsidian-app` caches the downloaded Obsidian so it is not fetched again when the container is recreated.
 
-To use a different host port, change the left number, for example `9000:8080`.
+To use a different host port, change the binding to e.g. `127.0.0.1:9000:8080` and set `IGNIS_PUBLIC_ORIGIN=http://localhost:9000`.
 
 ## Start the container
 
@@ -53,7 +63,7 @@ docker compose logs -f
 
 ## Open Ignis
 
-Visit `http://localhost:8080`, or the host and port you mapped. You should see Ignis load in your browser.
+Visit `http://localhost:8080`, or the host and port you mapped. Sign in using the password from your secret file. Restarting the container requires signing in again.
 
 ## Create your first vault
 
@@ -63,12 +73,9 @@ If a vault is already in the `vaults` folder, Ignis will load it automatically. 
 
 ## Network access
 
-Local access over `http://localhost` works as is, but reaching Ignis over your LAN or the internet requires a secure context. You can achieve this in two ways:
+Local access over `http://localhost` works as configured above. For LAN or internet access, [set up HTTPS](/docs/security/remote-access/#serving-over-https) using a reverse proxy or `tailscale serve`, and set `IGNIS_PUBLIC_ORIGIN` to that exact HTTPS origin. Keep the backend accessible only to the proxy. Browser secure-context overrides do not enable remote HTTP password login.
 
-- [Set up TLS](/docs/security/remote-access/#serving-over-https), with a reverse proxy or `tailscale serve`.
-- [Treat your host as a secure origin](/docs/security/remote-access/#running-without-tls) without TLS, per browser.
-
-If you make Ignis available to external networks it is highly recommended that you put [Authentication](/docs/security/authentication/) in front.
+If an existing gateway already authenticates all requests, use explicit `IGNIS_AUTH_MODE=external` and remove password variables/secrets. See [Authentication](/docs/security/authentication/) for both deployment modes.
 
 ## Configuration
 

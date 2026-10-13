@@ -4,7 +4,12 @@ services:
       context: ../..
       dockerfile: apps/ignis-server/Dockerfile
     ports:
-      - "8082:8080"
+      - "127.0.0.1:8082:8080"
+    environment:
+      IGNIS_PASSWORD_FILE: /run/secrets/ignis_password
+      IGNIS_PUBLIC_ORIGIN: ${IGNIS_PUBLIC_ORIGIN:-http://localhost:8082}
+    secrets:
+      - ignis_password
     volumes:
       - ./vaults:/vaults
       - ./data:/app/data
@@ -13,3 +18,7 @@ services:
 
 volumes:
   obsidian-app:
+
+secrets:
+  ignis_password:
+    file: ./.ignis-secrets/password

@@ -9,6 +9,17 @@ export function createWsClient() {
   let reconnectTimer = null;
   let manuallyClosed = false;
   let state = "closed"; // "closed" | "connecting" | "open"
+  let authListening = false;
+
+  function pauseForAuth() {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    ws?.close();
+  }
+
+  function resumeAfterAuth() {
+    if (vaultId && !manuallyClosed) scheduleReconnect();
+  }
 
   const globalSubs = new Map(); // type -> Set<handler>
   const channelSubs = new Map(); // channelName -> Map<type, Set<handler>>
@@ -81,7 +92,7 @@ export function createWsClient() {
   }
 
   function openSocket() {
-    if (ws) {
+    if (ws || window.IgnisAuth?.required) {
       return;
     }
 
@@ -131,12 +142,20 @@ export function createWsClient() {
       dispatch(msg);
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       ws = null;
       setState("closed");
 
       if (!manuallyClosed) {
-        scheduleReconnect();
+        if (event?.code === 4004) window.IgnisAuth?.requireLogin();
+        if (window.IgnisAuth) {
+          // Browsers hide the HTTP response from a rejected upgrade.
+          window.IgnisAuth.checkSession().then((authenticated) => {
+            if (authenticated) scheduleReconnect();
+          });
+        } else {
+          scheduleReconnect();
+        }
       }
     };
 
@@ -146,7 +165,7 @@ export function createWsClient() {
   }
 
   function scheduleReconnect() {
-    if (reconnectTimer || manuallyClosed) {
+    if (reconnectTimer || manuallyClosed || window.IgnisAuth?.required) {
       return;
     }
 
@@ -165,11 +184,21 @@ export function createWsClient() {
 
     vaultId = id;
     manuallyClosed = false;
+    if (!authListening && window.addEventListener) {
+      window.addEventListener("ignis:auth-required", pauseForAuth);
+      window.addEventListener("ignis:auth-restored", resumeAfterAuth);
+      authListening = true;
+    }
     openSocket();
   }
 
   function disconnect() {
     manuallyClosed = true;
+    if (authListening) {
+      window.removeEventListener("ignis:auth-required", pauseForAuth);
+      window.removeEventListener("ignis:auth-restored", resumeAfterAuth);
+      authListening = false;
+    }
 
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);

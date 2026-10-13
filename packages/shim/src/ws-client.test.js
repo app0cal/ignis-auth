@@ -112,3 +112,30 @@ describe("ws-client channels", () => {
     });
   });
 });
+
+describe("ws-client authentication", () => {
+  it("pauses rejected upgrades until reauthentication and then reconnects", async () => {
+    const events = new EventTarget();
+    window.addEventListener = events.addEventListener.bind(events);
+    window.removeEventListener = events.removeEventListener.bind(events);
+    window.IgnisAuth = {
+      required: false,
+      requireLogin() { this.required = true; },
+      checkSession: vi.fn(async () => false),
+    };
+    const client = createWsClient();
+    client.connect("v1");
+    sockets[0].onclose({ code: 4004 });
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(window.IgnisAuth.checkSession).toHaveBeenCalled();
+    expect(sockets).toHaveLength(1);
+    window.IgnisAuth.required = false;
+    events.dispatchEvent(new Event("ignis:auth-restored"));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(sockets).toHaveLength(2);
+    client.disconnect();
+    events.dispatchEvent(new Event("ignis:auth-restored"));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(sockets).toHaveLength(2);
+  });
+});

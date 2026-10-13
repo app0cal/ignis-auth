@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- Built-in single-owner password login, seven-day browser sessions, logout, and reauthentication without leaving the editor.
+- Deployment secrets, a password-hash helper, login rate limits, and authentication for HTTP and WebSocket access.
+
+### Breaking changes
+
+- Authentication now defaults to `password`. Configure one password/hash source before upgrading, or explicitly set `IGNIS_AUTH_MODE=external` behind an existing authentication gateway. Missing credentials prevent startup.
+- Password authentication requires `IGNIS_PUBLIC_ORIGIN` for remote HTTPS access. Restarting the server revokes browser sessions. See the authentication and updating guides.
+
 ## [0.8.17] - Karm (2026-10-11)
 
 ### Added

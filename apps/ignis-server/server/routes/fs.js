@@ -595,7 +595,7 @@ router.get("/tree", async (req, res) => {
       return res.status(404).json({ error: "Vault not found" });
     }
 
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("ETag", entry.etag);
 
     if (req.headers["if-none-match"] === entry.etag) {

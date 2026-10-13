@@ -4,11 +4,13 @@ import http from "http";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { once } from "node:events";
 
 const require = createRequire(import.meta.url);
 const { setupWebSocket, heartbeatSweep } = require("./ws.js");
 const { WebSocket } = require("ws");
 const watcher = require("./watcher.js");
+const { createSessions } = require("../../../apps/ignis-server/server/auth/sessions.js");
 
 function fakeSocket(isAlive) {
   return { isAlive, ping: vi.fn(), terminate: vi.fn() };
@@ -129,5 +131,56 @@ describe("closeVaultSockets", () => {
     const freshClosed = closeCode(fresh);
     fresh.close();
     await freshClosed;
+  });
+});
+
+describe("live connection authorization", () => {
+  it("blocks direct sends and incoming messages after expiry, even before the expiry timer runs", async () => {
+    let now = 0;
+    const sessions = createSessions({ now: () => now, lifetime: 10000 });
+    const { token, session } = sessions.create();
+    const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "ws-auth-test-"));
+    const server = http.createServer();
+    const wss = setupWebSocket(server, {
+      getVaultPath: () => tmpDir,
+      authorizeUpgrade: (req) => sessions.get(req.headers.authorization),
+      isConnectionAuthorized: sessions.active,
+      onAuthorizedConnection: (socket, context) => sessions.bind(socket, context),
+    });
+    const handler = vi.fn();
+    wss.messageHandlers.set("mutate", handler);
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const base = `ws://127.0.0.1:${server.address().port}/ws?vault=v`;
+    try {
+      const connected = once(wss, "connection");
+      const client = new WebSocket(base, { headers: { Authorization: token } });
+      const [peer] = await connected;
+      await once(client, "open");
+      const received = vi.fn();
+      client.on("message", received);
+      const closed = once(client, "close");
+      now = session.expiresAt;
+      peer.send("must not be delivered");
+      expect((await closed)[0]).toBe(4004);
+      expect(received).not.toHaveBeenCalled();
+
+      const fresh = sessions.create();
+      const connection = once(wss, "connection");
+      const next = new WebSocket(base, { headers: { Authorization: fresh.token } });
+      await connection;
+      await once(next, "open");
+      const nextClosed = once(next, "close");
+      now = fresh.session.expiresAt;
+      next.send(JSON.stringify({ type: "mutate" }));
+      expect((await nextClosed)[0]).toBe(4004);
+      expect(handler).not.toHaveBeenCalled();
+    } finally {
+      sessions.close();
+      for (const client of wss.clients) client.terminate();
+      wss.close();
+      await new Promise((resolve) => server.close(resolve));
+      await watcher._reset();
+      await fs.promises.rm(tmpDir, { recursive: true, force: true });
+    }
   });
 });

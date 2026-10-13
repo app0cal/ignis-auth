@@ -87,6 +87,7 @@ function getVaultPath(id) {
 }
 
 module.exports = {
+  getAuthConfig: require("./auth/config").readAuthConfig,
   port: process.env.PORT || 8080,
   vaultRoot,
   dataRoot,

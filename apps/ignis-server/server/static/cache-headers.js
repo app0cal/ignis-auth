@@ -1,8 +1,8 @@
 // Cache policy for static assets.
 // Versioned requests (carrying a ?v cache-buster) are immutable for a year; unversioned requests keep a short cache and revalidate via ETag.
 
-const IMMUTABLE = "public, max-age=31536000, immutable";
-const SHORT = "public, max-age=300";
+const IMMUTABLE = "private, max-age=31536000, immutable";
+const SHORT = "private, max-age=300";
 
 // Asset types whose caching we manage; everything else keeps express.static defaults.
 const ASSET_EXT = /\.(?:js|css|woff2?|ttf|otf|wasm|map)$/i;

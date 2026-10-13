@@ -44,11 +44,15 @@ services:
   ignis:
     image: nobbe/ignis:latest
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       # match these to your host user (run: id)
       - PUID=1000
       - PGID=1000
+      - IGNIS_PASSWORD_FILE=/run/secrets/ignis_password
+      - IGNIS_PUBLIC_ORIGIN=http://localhost:8080
+    secrets:
+      - ignis_password
     volumes:
       - ./vaults:/vaults
       - ./data:/app/data
@@ -57,12 +61,16 @@ services:
 
 volumes:
   obsidian-app:
+
+secrets:
+  ignis_password:
+    file: ./.ignis-secrets/password
 ```
 
-Save it as `docker-compose.yml`, then run `docker compose up -d` and open `http://localhost:8080`. The first start pulls Obsidian from its official source, so give it a minute or two. With no vaults yet, Ignis opens the vault manager to create your first one.
+Save it as `docker-compose.yml`. Create `.ignis-secrets/password` containing a strong, unique password (readable by your configured container user), keep it out of version control, then run `docker compose up -d` and open `http://localhost:8080`. Sign in with your password. The first start pulls Obsidian from its official source, so give it a minute or two. With no vaults yet, Ignis opens the vault manager to create your first one.
 
 > [!IMPORTANT]
-> Before exposing Ignis to other machines, put authentication in front of it and serve it over HTTPS. It has no built-in auth, so anyone who reaches an open instance can read and write the whole vault, and outside a secure context (HTTPS, or `localhost`) the browser disables features Ignis needs. See [Remote access](https://ignis.thiefling.com/docs/security/remote-access/) and [Authentication](https://ignis.thiefling.com/docs/security/authentication/).
+> Built-in authentication protects the whole instance; all signed-in browsers have full access. For remote access, serve over HTTPS and set `IGNIS_PUBLIC_ORIGIN` to your HTTPS origin. Existing authentication proxies can use explicit `IGNIS_AUTH_MODE=external`. See [Remote access](https://ignis.thiefling.com/docs/security/remote-access/) and [Authentication](https://ignis.thiefling.com/docs/security/authentication/).
 
 Full setup and configuration are in the [deploy guide](https://ignis.thiefling.com/docs/server/deploy/); the rest of the [documentation](https://ignis.thiefling.com/docs/) covers settings, security, and operations.
 

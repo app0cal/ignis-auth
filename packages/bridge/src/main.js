@@ -58,6 +58,11 @@ class IgnisBridgePlugin extends Plugin {
 
     registerCommands(this);
 
+    if (window.IgnisAuth) {
+      this.addRibbonIcon("log-out", "Sign out of Ignis", () => window.IgnisAuth.logout());
+      this.addCommand({ id: "logout", name: "Sign out of Ignis", callback: () => window.IgnisAuth.logout() });
+    }
+
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
         if (file instanceof TFile) {

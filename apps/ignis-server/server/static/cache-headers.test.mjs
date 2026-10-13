@@ -21,12 +21,12 @@ describe("versionedSrc", () => {
 describe("cacheControlFor", () => {
   it("is immutable for a versioned asset", () => {
     expect(cacheControlFor("/app.js", true)).toBe(
-      "public, max-age=31536000, immutable",
+      "private, max-age=31536000, immutable",
     );
   });
 
   it("is a short cache for an unversioned asset", () => {
-    expect(cacheControlFor("/app.js", false)).toBe("public, max-age=300");
+    expect(cacheControlFor("/app.js", false)).toBe("private, max-age=300");
   });
 
   it("covers css, fonts, wasm, and sourcemaps", () => {

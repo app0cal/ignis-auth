@@ -24,7 +24,8 @@ function heartbeatSweep(clients) {
 }
 
 function setupWebSocket(server, opts = {}) {
-  const { getVaultPath, originAllowlist } = opts;
+  const { getVaultPath, originAllowlist, authorizeUpgrade,
+    isConnectionAuthorized, onAuthorizedConnection } = opts;
 
   if (typeof getVaultPath !== "function") {
     throw new Error("setupWebSocket: opts.getVaultPath is required");
@@ -32,7 +33,31 @@ function setupWebSocket(server, opts = {}) {
 
   const originSet = toOriginSet(originAllowlist);
 
-  const wss = new WebSocketServer({ server, path: "/ws" });
+  const wss = new WebSocketServer({ noServer: true });
+  function upgrade(req, socket, head) {
+    let context;
+    try {
+      if (new URL(req.url, "http://localhost").pathname !== "/ws") {
+        socket.end("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
+        return;
+      }
+      if (originSet && !originSet.has(req.headers.origin)) {
+        socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+        return;
+      }
+      context = authorizeUpgrade ? authorizeUpgrade(req) : {};
+    } catch {
+      context = null;
+    }
+    if (!context) {
+      socket.end("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req, context);
+    });
+  }
+  server.on("upgrade", upgrade);
 
   // Global message handlers: type -> handler(msg, ws).
   wss.messageHandlers = new Map();
@@ -133,15 +158,21 @@ function setupWebSocket(server, opts = {}) {
     };
   };
 
-  wss.on("connection", (ws, req) => {
-    if (originSet) {
-      const origin = req.headers.origin;
-
-      if (!origin || !originSet.has(origin)) {
-        ws.close(4003, "Origin not allowed");
-        return;
-      }
-    }
+  wss.on("connection", (ws, req, context) => {
+    const authorized = () => {
+      if (!isConnectionAuthorized || isConnectionAuthorized(context)) return true;
+      ws.close(4004, "Authentication required");
+      return false;
+    };
+    // Guard every send, including direct sends by plugins and watcher listeners.
+    const send = ws.send.bind(ws);
+    ws.send = (...args) => {
+      if (authorized()) return send(...args);
+      const callback = args.at(-1);
+      if (typeof callback === "function") callback(new Error("Authentication required"));
+    };
+    if (!authorized()) return;
+    onAuthorizedConnection?.(ws, context);
 
     const params = new url.URL(req.url, "http://localhost").searchParams;
     const vaultId = params.get("vault");
@@ -180,6 +211,7 @@ function setupWebSocket(server, opts = {}) {
 
     // Dispatch incoming messages to registered handlers.
     ws.on("message", (data) => {
+      if (!authorized()) return;
       let msg;
 
       try {
@@ -254,7 +286,10 @@ function setupWebSocket(server, opts = {}) {
   );
   heartbeat.unref?.();
 
-  wss.on("close", () => clearInterval(heartbeat));
+  wss.on("close", () => {
+    clearInterval(heartbeat);
+    server.off("upgrade", upgrade);
+  });
 
   return wss;
 }

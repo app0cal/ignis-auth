@@ -23,6 +23,8 @@ services:
 
   ignis:
     image: nobbe/ignis:latest
+    environment:
+      IGNIS_AUTH_MODE: external
     # To build from source instead, comment out `image` and uncomment:
     # build: ../../
     volumes:

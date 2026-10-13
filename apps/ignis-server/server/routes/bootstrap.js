@@ -24,7 +24,7 @@ router.get("/", async (req, res) => {
     }
 
     // don't cache the bootstrap response, since it contains the metadata tree which can change frequently.
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Cache-Control", "private, no-store");
 
     const ae = req.headers["accept-encoding"] || "";
     const compressed = await getOrCompress(entry);
